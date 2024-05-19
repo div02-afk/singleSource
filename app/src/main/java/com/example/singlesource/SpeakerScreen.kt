@@ -1,5 +1,10 @@
 package com.example.singlesource
 
+import NetworkConstants
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.InetAddress
+import kotlin.concurrent.thread
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,6 +21,7 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun SpeakerScreen(navController: NavController){
+    announcePresence(NetworkConstants.ROLE_SPEAKER)
     Column (
         modifier = Modifier.fillMaxSize(),
 
@@ -29,4 +35,27 @@ fun SpeakerScreen(navController: NavController){
 
     }
 
+}
+
+fun announcePresence(role: String) {
+    thread {
+        try {
+            val socket = DatagramSocket()
+            socket.broadcast = true;
+            val messageToSend = role + NetworkConstants.NAME;
+            val message = messageToSend.toByteArray()
+            val packet = DatagramPacket(
+                message,
+                message.size,
+                getBroadcastAddress(),
+                NetworkConstants.BROADCAST_PORT
+            )
+            while (true) {
+                socket.send(packet)
+                Thread.sleep(2000) // Announce every 2 seconds
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 }
