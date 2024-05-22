@@ -27,31 +27,30 @@ import androidx.navigation.NavController
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
-import java.net.BindException
-import java.net.DatagramPacket
-import java.net.DatagramSocket
-import kotlin.concurrent.thread
+
 
 @Composable
 fun HostScreen(navController: NavController){
-    val discoveredSpeakers = mutableListOf<String>()
-    var discoveredNames by remember { mutableStateOf(listOf<String>(NetworkConstants.NAME)) }
-    announcePresence(NetworkConstants.ROLE_HOST)
-    println("joined");
+    var newConnection = Connection();
+    newConnection.announcePresence(NetworkConstants.ROLE_HOST+NetworkConstants.NAME);
+    var discoveredNames by remember { mutableStateOf(listOf<String>()) }
     val coroutineScope = rememberCoroutineScope()
     val updatedDiscoveredNames by rememberUpdatedState(discoveredNames)
 
-
-    listenForAnnouncements { role, address ->
-        if (role.substring(0,NetworkConstants.ROLE_SPEAKER.length) == NetworkConstants.ROLE_SPEAKER && !discoveredSpeakers.contains(address)) {
-            val name = role.substring(NetworkConstants.ROLE_SPEAKER.length);
+    newConnection.listenForAnnouncements { role, address ->
+        println("got a connection : $role")
+        if (role.substring(0,NetworkConstants.ROLE_SPEAKER.length) == NetworkConstants.ROLE_SPEAKER && !newConnection.discoveredSpeakers.contains(address) && role.endsWith(NetworkConstants.NAME)) {
+            var name = role.substring(NetworkConstants.ROLE_SPEAKER.length);
+            val nameLen = name.length - NetworkConstants.NAME.length;
+            name = name.substring(nameLen);
             if (address != null) {
-                discoveredSpeakers.add(address)
+                newConnection.discoveredSpeakers.add(address)
                 coroutineScope.launch {
                     discoveredNames = updatedDiscoveredNames + name
                 }
             }
-            println("Found speaker: $address - ${name}, total ${discoveredSpeakers.size}")
+            println("Speaker found: $name");
+
 
         }
     }
@@ -59,11 +58,15 @@ fun HostScreen(navController: NavController){
         modifier = Modifier.fillMaxSize(),
 
     ) {
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(30.dp))
         Button(onClick = {
 
-            navController.navigate(Screen.HomeScreen.route) }) {
-            Text(text = "Back")
+            navController.navigate(Screen.HomeScreen.route)
+            newConnection = Connection();
+                         }
+            , modifier = Modifier.padding(horizontal = 10.dp)
+        ) {
+            Text(text = "<", fontSize = 20.sp)
         }
 
         Text(text = "Host Screen", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(), fontSize = 30.sp)
@@ -84,25 +87,3 @@ fun HostScreen(navController: NavController){
 }
 
 
-fun listenForAnnouncements(onDeviceFound: (String, String?) -> Unit) {
-    thread {
-        try {
-            val listenSocket = DatagramSocket(NetworkConstants.BROADCAST_PORT).apply {
-                reuseAddress = true
-            }
-            val buffer = ByteArray(1024)
-            while (true) {
-                val packet = DatagramPacket(buffer, buffer.size)
-                listenSocket?.receive(packet)
-                val message = String(packet.data, 0, packet.length)
-                val address = packet.address.hostAddress
-                onDeviceFound(message, address)
-            }
-        } catch (e: BindException) {
-            e.printStackTrace()
-            // Handle the error, possibly by retrying with a different port
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-}
