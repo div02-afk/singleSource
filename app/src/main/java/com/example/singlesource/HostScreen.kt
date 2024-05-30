@@ -1,6 +1,7 @@
 package com.example.singlesource
 
 import NetworkConstants
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,15 +28,20 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.navigation.NavController
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 
 @Composable
 fun HostScreen(navController: NavController){
     var newConnection = Connection();
-    newConnection.announcePresence(NetworkConstants.ROLE_HOST+NetworkConstants.NAME);
-    var discoveredNames by remember { mutableStateOf(listOf<String>()) }
     val coroutineScope = rememberCoroutineScope()
+    var announceJob: Job? by remember { mutableStateOf(null) }
+    LaunchedEffect(Unit) {
+        announceJob = announcePresence(coroutineScope, NetworkConstants.ROLE_HOST + NetworkConstants.NAME)
+    }
+    var discoveredNames by remember { mutableStateOf(listOf<String>()) }
+
     val updatedDiscoveredNames by rememberUpdatedState(discoveredNames)
 
     newConnection.listenForAnnouncements { role, address ->
@@ -54,15 +61,20 @@ fun HostScreen(navController: NavController){
 
         }
     }
+    BackHandler {
+        announceJob?.cancel();
+        navController.navigate(Screen.HomeScreen.route);
+    }
     Column (
         modifier = Modifier.fillMaxSize(),
 
     ) {
         Spacer(modifier = Modifier.height(30.dp))
         Button(onClick = {
-
-            navController.navigate(Screen.HomeScreen.route)
+            announceJob?.cancel()
             newConnection = Connection();
+            navController.navigate(Screen.HomeScreen.route)
+
                          }
             , modifier = Modifier.padding(horizontal = 10.dp)
         ) {
@@ -73,7 +85,9 @@ fun HostScreen(navController: NavController){
         LazyColumn {
             items(discoveredNames) { name ->
                 Row (
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ){

@@ -1,6 +1,7 @@
 package com.example.singlesource
 
 import NetworkConstants
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import java.net.DatagramPacket
 import java.net.DatagramSocket
@@ -18,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,10 +32,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.navigation.NavController
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.CompletableJob
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 
 @Composable
 fun SpeakerScreen(navController: NavController){
+    var announceJob: Job? by remember { mutableStateOf(null) }
     val newConnection = Connection()
     var discoveredNames by remember { mutableStateOf(listOf<String>()) }
     val coroutineScope = rememberCoroutineScope()
@@ -53,12 +60,18 @@ fun SpeakerScreen(navController: NavController){
 
         }
     }
+    BackHandler {
+        announceJob?.cancel()
+        navController.navigate(Screen.HomeScreen.route)
+    }
     Column (
         modifier = Modifier.fillMaxSize(),
 
         ) {
         Spacer(modifier = Modifier.height(30.dp))
-        Button(onClick = { navController.navigate(Screen.HomeScreen.route) }, modifier = Modifier.padding(horizontal = 10.dp)) {
+        Button(onClick = {
+            announceJob?.cancel();
+            navController.navigate(Screen.HomeScreen.route) }, modifier = Modifier.padding(horizontal = 10.dp)) {
             Text(text = "<", fontSize = 20.sp)
         }
 
@@ -79,7 +92,11 @@ fun SpeakerScreen(navController: NavController){
                     Text(text = name, fontSize = 20.sp, modifier = Modifier.padding(20.dp));
                     Button(onClick = {
                         newConnection.host = name
-                        newConnection.announcePresence(NetworkConstants.ROLE_SPEAKER+NetworkConstants.NAME+name)
+                        announceJob = coroutineScope.launch {
+                            // Start a new announcement job
+                            announcePresence(coroutineScope, NetworkConstants.ROLE_SPEAKER + NetworkConstants.NAME + name)
+                        }
+
                     }) {
                         Text(text = "+")
                     }
