@@ -41,15 +41,11 @@ fun HostScreen(navController: NavController){
         announceJob = announcePresence(coroutineScope, NetworkConstants.ROLE_HOST + NetworkConstants.NAME)
     }
     var discoveredNames by remember { mutableStateOf(listOf<String>()) }
-
     val updatedDiscoveredNames by rememberUpdatedState(discoveredNames)
-
     newConnection.listenForAnnouncements { role, address ->
         println("got a connection : $role")
         if (role.substring(0,NetworkConstants.ROLE_SPEAKER.length) == NetworkConstants.ROLE_SPEAKER && !newConnection.discoveredSpeakers.contains(address) && role.endsWith(NetworkConstants.NAME)) {
-            var name = role.substring(NetworkConstants.ROLE_SPEAKER.length);
-            val nameLen = name.length - NetworkConstants.NAME.length;
-            name = name.substring(nameLen);
+            val name = role.substring(NetworkConstants.ROLE_SPEAKER.length,role.indexOf(NetworkConstants.NAME))
             if (address != null) {
                 newConnection.discoveredSpeakers.add(address)
                 coroutineScope.launch {

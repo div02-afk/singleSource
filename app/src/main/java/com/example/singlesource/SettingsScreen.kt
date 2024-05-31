@@ -1,6 +1,7 @@
 package com.example.singlesource
 
 import NetworkConstants
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,7 +20,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.*
 @Composable
-fun SettingsScreen(navController: NavController){
+fun SettingsScreen(navController: NavController,context : Context){
+    val sharedPreferences = remember {
+        context.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
+    }
+
     var text by remember { mutableStateOf(NetworkConstants.NAME) }
     Column(
         modifier = Modifier
@@ -44,7 +49,11 @@ fun SettingsScreen(navController: NavController){
                 label = { Text("Change Name") }
             )
             Spacer(modifier = Modifier.padding(vertical = 30.dp))
-            Button(onClick = { NetworkConstants.NAME = text }) {
+            Button(onClick = { NetworkConstants.NAME = text
+                val editor = sharedPreferences.edit()
+                editor.putString("name",text)
+                editor.apply();
+                }) {
                 Text(text = "Save")
             }
         }
